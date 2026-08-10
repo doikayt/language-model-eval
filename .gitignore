@@ -1,0 +1,40 @@
+
+# Local claude stuff
+**/.claude/settings.local.json
+
+
+
+*.tsbuildinfo 
+coverage/
+
+dist
+**/dist/
+
+**/node_modules/
+.nx/
+.env
+
+
+
+
+## no idea crap allowed
+.idea/
+.idea/*
+
+*.ipr
+*.iml
+*.iws
+
+
+# Terraform local state and provider cache — contains real infra details, don't commit
+.terraform/
+.terraform.lock.hcl
+*.tfstate
+*.tfstate.*
+crash.log
+crash.*.log
+
+# Real secrets — only the .example file should be committed
+terraform.tfvars
+*.auto.tfvars
+

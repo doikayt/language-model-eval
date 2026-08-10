@@ -1,0 +1,9 @@
+{
+    "extends": "./node_modules/@doikayt/typescript-build-config/src/tsconfig.base.json",
+    "compilerOptions": {
+        "outDir": "dist",
+        "rootDir": "src"
+    },
+    "include": ["src"],
+    "exclude": ["node_modules", "dist", "src/**/*.test.ts"]
+}

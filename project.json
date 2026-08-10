@@ -1,0 +1,24 @@
+{
+  "name": "demo",
+  "targets": {
+    "install": {
+      "description": "Install npm dependencies"
+    },
+    "build": {
+      "description": "Compile TypeScript source to JavaScript",
+      "dependsOn": ["install"]
+    },
+    "lint": {
+      "description": "Run ESLint on TypeScript source files",
+      "dependsOn": ["install"]
+    },
+    "type-check": {
+      "description": "Type-check source without emitting",
+      "dependsOn": ["build"]
+    },
+    "test": {
+      "description": "Run unit tests with vitest",
+      "dependsOn": ["build"]
+    }
+  }
+}

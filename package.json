@@ -1,0 +1,28 @@
+{
+  "name": "@doikayt/language-model-eval",
+  "version": "1.0.0",
+  "description": "",
+  "scripts": {
+    "ci": "npm run check-all-format && npm run test",
+    "build": "tsc",
+    "test": "vitest run",
+    "update-all-format": "npm run update-code-formatting && npm run update-markdown-docs",
+    "update-code-formatting": "prettier --write src/",
+    "update-markdown-docs": "autogen-markdown-doc",
+    "check-all-format": "npm run check-code-formatting && npm run check-markdown-docs",
+    "check-code-formatting": "prettier --check src/",
+    "check-markdown-docs": "autogen-markdown-doc check"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@doikayt/typescript-build-config": "^0.1.24",
+    "vitest": "^4.1.10",
+    "@doikayt/autogen-markdown-doc": "^1.4.17",
+    "typescript": "^7.0.2",
+    "@changesets/cli": "^2.31.1"
+  },
+  "type": "module",
+  "private": true
+}
