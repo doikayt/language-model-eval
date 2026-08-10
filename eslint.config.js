@@ -1,8 +1,0 @@
-import config from "@doikayt/typescript-build-config/eslint";
-
-export default [
-    ...config,
-    {
-        ignores: ["dist/**", "node_modules/**"],
-    },
-];

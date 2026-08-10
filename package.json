@@ -13,11 +13,19 @@
     "check-code-formatting": "prettier --check src/",
     "check-markdown-docs": "autogen-markdown-doc check"
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/doikayt/language-model-eval.git"
+  },
   "keywords": [],
   "author": "",
   "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/doikayt/language-model-eval/issues"
+  },
+  "homepage": "https://github.com/doikayt/language-model-eval#readme",
   "devDependencies": {
-    "@doikayt/typescript-build-config": "^0.1.24",
+    "@doikayt/typescript-build-config": "^0.1.25",
     "vitest": "^4.1.10",
     "@doikayt/autogen-markdown-doc": "^1.4.17",
     "typescript": "^7.0.2",
