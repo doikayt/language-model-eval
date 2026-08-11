@@ -1,0 +1,663 @@
+GOAL:  create detailed README that describes pdf -> csv data converter  (bank statement analysis is the cannonical use case)
+
+
+Below we have an idea for an article that proposes a 
+distributed experiment in which participant 
+evaluates different models on the basis of how 
+they perform to translate their pdf bank statement into the equivalent transaction record in .csv format
+
+Context:
+            have pdfs from bank, but not the .csv version which is easier to work with (grouping filtering aggregating etc)
+
+
+The article notes (below) give a high level summary of the framework and describe how data is collected.
+
+But for this planning exercise i just want to focus on writing up the README which describes the framework 
+that converts pdf->csv.
+
+    OUT OF SCOPE
+        data-collection via github
+
+
+Here are the basic components of the model evaluator:
+
+    gold-files-dir
+        collection of  matched pdf and .csv files  that contain the same transaction data. 
+
+    map configuration:
+
+    gold-files-dir populator
+        name of field in .pdf   -> transformation  ->  name of field in .csv 
+
+        an example of the transformation might be extract first sequence of consecutive non-white space chars
+            - this is useful because sometimes bank pdfs  mash the vendor name and location and sometimes phone number
+              all we reallyneed mostly is the first word of the vendor name text to characterize the transaction.
+
+
+I'm thinking we want to release this framework as an npm package.
+
+
+
+How we wll evaluate the model:
+
+claude-proxy
+    prompts for which provider (recommended by deepseek: choose Ollama)
+
+
+MACHINE we will run on:
+    ThinkPad with its Intel Core i7-6820HQ and 32 GB of RAM
+
+
+Rejected Alternative:
+
+    was considering to evaluate with Financial Document Analyzer for comparison...
+    but since we will have a 'gold' data set I don't think we need this.
+
+--------------
+Evaluating AI for Financial Document Extraction: A Practical Case Study
+Or: How to Stop Chasing Benchmarks and Start Solving Real Problems
+
+📋 Executive Summary
+This case study documents the process of evaluating AI models for extracting financial transaction data from PDF bank statements. The goal was not to find the "best" model, but to determine whether any model could reliably extract data for tax reporting purposes.
+
+What started as a simple question ("Can AI convert my PDFs to CSV?") evolved into a sophisticated evaluation framework. The key insight: domain knowledge and practical requirements must drive AI evaluation, not generic benchmarks.
+
+🎯 The Problem Statement
+Business Need
+Extract financial transaction data from 12 months of PDF bank statements for tax reporting. The extracted data must be accurate enough to:
+
+Categorize expenses (business vs. personal)
+
+Support tax deductions
+
+Survive IRS audit scrutiny
+
+The Data
+Source	Format	Purpose
+Bank PDF Statements	PDF	Official record, human-readable
+Bank CSV Export	CSV	Machine-readable, limited history
+Extracted Output	CSV	AI-generated, to be verified
+The Challenge
+The PDF and CSV are two different views of the same data, not one derived from the other. This means:
+
+Columns don't map 1:1
+
+Reference numbers don't match
+
+Descriptions are formatted differently
+
+🔍 The Evaluation Journey
+Phase 1: Initial Assumptions (Wrong)
+Assumption	Reality
+"I'll just compare PDF row to CSV row"	❌ Schema mismatch
+"Reference numbers should match"	❌ Different systems
+"I need exact field-by-field accuracy"	❌ Overkill for the use case
+Phase 2: Discovering What Actually Matters
+After analyzing the data, we identified the critical fields:
+
+Field	Why It Matters	Match Method
+Posted Date	Determines tax year	Exact match
+Amount	Determines deduction value	Numeric (±$0.01)
+Payee	Determines categorization	Substring/First word
+Reference	Traceability	❌ SKIP - doesn't match
+Phase 3: Building the Right Test
+python
+# Simplified matching logic
+def build_match_key(row, source_type):
+    date = normalize_date(row['date'])
+    amount = round(float(row['amount']), 2)
+    first_word = row['description'].split()[0]
+    return (date, amount, first_word.upper())
+Key insight: We test only what matters for tax reporting, not everything possible.
+
+📊 The Evaluation Framework
+1. Dollar-Weighted Accuracy
+Traditional accuracy treats all transactions equally:
+
+text
+Traditional Accuracy = Correct Transactions / Total Transactions
+For tax purposes, this is misleading. A $5,000 missed transaction is far more important than a $5 missed transaction.
+
+Instead, we use dollar-weighted accuracy:
+
+python
+def dollar_weighted_accuracy(pdf_rows, extracted_rows):
+    total_actual = sum(row['amount'] for row in pdf_rows)
+    total_extracted = sum(row['amount'] for row in extracted_rows)
+    dollar_drift = abs(total_actual - total_extracted)
+    accuracy = (total_extracted / total_actual) * 100
+    return {
+        'dollar_drift': dollar_drift,
+        'accuracy_pct': accuracy,
+        'tax_impact': dollar_drift * tax_bracket
+    }
+2. Acceptance Thresholds
+Metric	Green (OK)	Yellow (Review)	Red (Fix)
+Dollar drift	< $100	$100 - $500	> $500
+Missed transactions	0	1-2	> 2
+Amount mismatches	0-2 small	1-2 medium	Any large
+3. Test Harness Structure
+text
+financial-extraction-test/
+├── data/
+│   ├── statements/       # PDF files
+│   ├── expected/         # Ground truth CSV
+│   └── manifest.json     # File mappings
+├── src/
+│   ├── extract.py        # Extraction wrapper
+│   └── compare.py        # Comparison logic
+├── tests/
+│   └── test_extraction.py
+├── results/              # JSON results
+└── README.md
+💡 Key Lessons Learned
+Lesson 1: Start with Your Actual Use Case
+text
+❌ "Is this AI model good?"
+✅ "Does this AI extract date, payee, and amount correctly?"
+Don't chase benchmarks. Chase your specific problem.
+
+Lesson 2: Ground Truth is Not Always Obvious
+The PDF and CSV are different data products from the same source. They are not guaranteed to be identical in structure or content.
+
+Before designing a test, understand the data pipeline.
+
+Lesson 3: Test What Matters, Not Everything
+For tax reporting:
+
+Must be right: Date, Amount, Payee
+
+Nice to have: Full description, Reference number
+
+Don't care: Address, Merchant location
+
+Cut through the noise. Identify the 20% of fields that give 80% of the value.
+
+Lesson 4: Use Dollar-Weighted Accuracy
+A missed transaction is not just a missed transaction. Weight your metrics by what matters.
+
+For financial data, dollars matter more than transaction count.
+
+Lesson 5: Make It Reproducible
+Build a test harness that:
+
+Uses real data from your domain
+
+Can be run by others
+
+Produces consistent results
+
+Reproducibility lets you compare models objectively over time.
+
+Lesson 6: Embrace the Community
+No single organization has all the data. Crowdsourcing results across different:
+
+Machines (CPU, GPU, RAM configs)
+
+Banks (different statement formats)
+
+Use cases (tax, budgeting, accounting)
+
+Crowdsourcing builds a more robust understanding than any single test.
+
+🎯 How to Apply This Framework
+Step 1: Define Your Business Outcome
+Question: What decision will you make with this data?
+
+Example: "I need to calculate total deductible business expenses for my tax return."
+
+Step 2: Identify Critical Data Fields
+Question: What specific data fields matter for that outcome?
+
+Example: "Date (for tax year), Amount (for deduction value), Payee (to distinguish business vs. personal)."
+
+Step 3: Understand Your Data Sources
+Question: Where does the data come from? Are the sources aligned?
+
+Example: "PDF statements are official records; CSV exports are from a different system. They won't match exactly."
+
+Step 4: Design a Domain-Specific Test
+Question: How will you test that the AI extracts the critical fields correctly?
+
+Example: "Match by (Date, Amount, First Word of Payee). Calculate dollar-weighted accuracy."
+
+Step 5: Set Acceptance Criteria
+Question: What constitutes "good enough" for your use case?
+
+Example: "Dollar drift < $500. Less than 2 completely missed transactions."
+
+Step 6: Make It Reproducible
+Question: How will you run this test again in the future?
+
+Example: "Git repo with 12 months of data, comparison scripts, and clear documentation."
+
+Step 7: Share Results
+Question: How will the community benefit from your work?
+
+Example: "GitHub repo with issue forms for others to submit results."
+
+🚀 Sample Implementation
+Comparison Script (Simplified)
+python
+def compare_transaction(pdf_row, csv_row):
+    errors = []
+    
+    # Date
+    if pdf_row['date'] != csv_row['date']:
+        errors.append(f"Date: {pdf_row['date']} vs {csv_row['date']}")
+    
+    # Amount (tolerance: $0.01)
+    if abs(pdf_row['amount'] - csv_row['amount']) > 0.01:
+        errors.append(f"Amount: {pdf_row['amount']} vs {csv_row['amount']}")
+    
+    # Payee (substring match)
+    if csv_row['payee'].lower() not in pdf_row['description'].lower():
+        errors.append(f"Payee: '{csv_row['payee']}' not in '{pdf_row['description']}'")
+    
+    return len(errors) == 0, errors
+
+def run_test(pdf_path, csv_path, extractor):
+    pdf_rows = extractor.extract(pdf_path)
+    csv_rows = read_csv(csv_path)
+    
+    # Match by (date, amount, first_word)
+    results = []
+    for pdf_row in pdf_rows:
+        key = (pdf_row['date'], pdf_row['amount'], pdf_row['description'].split()[0])
+        # ... matching logic
+        
+    # Dollar-weighted accuracy
+    total_actual = sum(row['amount'] for row in csv_rows)
+    total_extracted = sum(match['pdf_amount'] for match in results)
+    
+    return {
+        'dollar_drift': abs(total_actual - total_extracted),
+        'accuracy_pct': (total_extracted / total_actual) * 100,
+        'passed': passes
+    }
+Test Run Output
+json
+{
+  "run_id": "2026-08-08_13:42",
+  "model": "deepseek-r1:1.5b",
+  "bank": "Bank of America",
+  "months": 12,
+  "results": {
+    "2025-01": { "dollar_drift": 0.00, "transactions": 45, "pass": true },
+    "2025-02": { "dollar_drift": 12.50, "transactions": 38, "pass": false },
+    "2025-03": { "dollar_drift": 0.00, "transactions": 42, "pass": true }
+  },
+  "summary": {
+    "total_transactions": 512,
+    "total_dollar_drift": 12.50,
+    "dollar_weighted_accuracy": 99.97,
+    "missed_transactions": 1,
+    "amount_mismatches": 2,
+    "verdict": "PASS - Acceptable for tax reporting"
+  }
+}
+📖 Conclusion
+The Real Lesson
+When evaluating AI for a real-world task, start with your actual business outcome. Build a test that measures performance on that outcome, weighted by what matters. Make it reproducible. Share it with the community.
+
+This isn't just about financial extraction. The framework applies to any domain:
+
+Healthcare: Extract patient data, test for diagnostic accuracy
+
+Legal: Extract contract terms, test for clause identification
+
+Customer Support: Extract intent, test for response quality
+
+What You Get
+Confidence — You know exactly how the AI performs on your data
+
+Clarity — You know what "good enough" looks like
+
+Reproducibility — You can test new models against the same criteria
+
+Community — Others can benefit from your methodology
+
+Final Thought
+The goal isn't to find the "best" AI. It's to find the AI that works well enough for your specific, practical needs, with a clear understanding of where it succeeds and where it fails.
+
+That's how engineering should work.
+
+🔗 References & Resources
+Financial Document Analyzer - Local PDF extraction tool
+
+claude-proxy - Claude Code model swapping
+
+Ollama - Local model runtime
+
+Bank Statement Test Harness - This case study's code
+
+📝 Author Notes
+This article was inspired by real-world experience evaluating AI models for financial data extraction. The methodology was developed iteratively, driven by actual data analysis and practical requirements.
+
+The lesson applies broadly: Domain knowledge, not generic benchmarks, should drive AI evaluation.
+
+Feel free to share, adapt, and build upon this framework for your own domain.
+
+not a markdown file.  can you make a downloadable markdown file?
+I can't directly create a downloadable file in this chat interface, but I can provide you with the complete markdown content ready to copy and save. Here's what you need to do:
+
+📥 How to Create the Downloadable Markdown File
+Option 1: Copy and Save (Quickest)
+Copy the entire markdown content from the code block below
+
+Open your text editor (VS Code, Notepad++, Sublime Text, or even plain Notepad)
+
+Paste the content
+
+Save as evaluating-ai-financial-extraction.md
+
+Option 2: Direct Download (If You Have curl)
+Run this command in your terminal:
+
+bash
+curl -o evaluating-ai-financial-extraction.md https://raw.githubusercontent.com/your-repo/your-file.md
+(Note: You'd need to host the file somewhere first)
+
+📄 Complete Markdown Content
+Copy everything below this line:
+
+markdown
+# Evaluating AI for Financial Document Extraction: A Practical Case Study
+
+**Or: How to Stop Chasing Benchmarks and Start Solving Real Problems**
+
+---
+
+## 📋 Executive Summary
+
+This case study documents the process of evaluating AI models for extracting financial transaction data from PDF bank statements. The goal was not to find the "best" model, but to determine whether any model could reliably extract data for tax reporting purposes.
+
+What started as a simple question ("Can AI convert my PDFs to CSV?") evolved into a sophisticated evaluation framework. The key insight: **domain knowledge and practical requirements must drive AI evaluation, not generic benchmarks.**
+
+---
+
+## 🎯 The Problem Statement
+
+### Business Need
+
+Extract financial transaction data from 12 months of PDF bank statements for tax reporting. The extracted data must be accurate enough to:
+- Categorize expenses (business vs. personal)
+- Support tax deductions
+- Survive IRS audit scrutiny
+
+### The Data
+
+| Source | Format | Purpose |
+|---|---|---|
+| Bank PDF Statements | PDF | Official record, human-readable |
+| Bank CSV Export | CSV | Machine-readable, limited history |
+| Extracted Output | CSV | AI-generated, to be verified |
+
+### The Challenge
+
+The PDF and CSV are **two different views of the same data**, not one derived from the other. This means:
+- Columns don't map 1:1
+- Reference numbers don't match
+- Descriptions are formatted differently
+
+---
+
+## 🔍 The Evaluation Journey
+
+### Phase 1: Initial Assumptions (Wrong)
+
+| Assumption | Reality |
+|---|---|
+| "I'll just compare PDF row to CSV row" | ❌ Schema mismatch |
+| "Reference numbers should match" | ❌ Different systems |
+| "I need exact field-by-field accuracy" | ❌ Overkill for the use case |
+
+### Phase 2: Discovering What Actually Matters
+
+After analyzing the data, we identified the critical fields:
+
+| Field | Why It Matters | Match Method |
+|---|---|---|
+| **Posted Date** | Determines tax year | Exact match |
+| **Amount** | Determines deduction value | Numeric (±$0.01) |
+| **Payee** | Determines categorization | Substring/First word |
+| **Reference** | Traceability | ❌ SKIP - doesn't match |
+
+### Phase 3: Building the Right Test
+
+```python
+# Simplified matching logic
+def build_match_key(row, source_type):
+    date = normalize_date(row['date'])
+    amount = round(float(row['amount']), 2)
+    first_word = row['description'].split()[0]
+    return (date, amount, first_word.upper())
+Key insight: We test only what matters for tax reporting, not everything possible.
+
+📊 The Evaluation Framework
+1. Dollar-Weighted Accuracy
+Traditional accuracy treats all transactions equally:
+
+text
+Traditional Accuracy = Correct Transactions / Total Transactions
+For tax purposes, this is misleading. A $5,000 missed transaction is far more important than a $5 missed transaction.
+
+Instead, we use dollar-weighted accuracy:
+
+python
+def dollar_weighted_accuracy(pdf_rows, extracted_rows):
+    total_actual = sum(row['amount'] for row in pdf_rows)
+    total_extracted = sum(row['amount'] for row in extracted_rows)
+    dollar_drift = abs(total_actual - total_extracted)
+    accuracy = (total_extracted / total_actual) * 100
+    return {
+        'dollar_drift': dollar_drift,
+        'accuracy_pct': accuracy,
+        'tax_impact': dollar_drift * tax_bracket
+    }
+2. Acceptance Thresholds
+Metric	Green (OK)	Yellow (Review)	Red (Fix)
+Dollar drift	< $100	$100 - $500	> $500
+Missed transactions	0	1-2	> 2
+Amount mismatches	0-2 small	1-2 medium	Any large
+3. Test Harness Structure
+text
+financial-extraction-test/
+├── data/
+│   ├── statements/       # PDF files
+│   ├── expected/         # Ground truth CSV
+│   └── manifest.json     # File mappings
+├── src/
+│   ├── extract.py        # Extraction wrapper
+│   └── compare.py        # Comparison logic
+├── tests/
+│   └── test_extraction.py
+├── results/              # JSON results
+└── README.md
+💡 Key Lessons Learned
+Lesson 1: Start with Your Actual Use Case
+text
+❌ "Is this AI model good?"
+✅ "Does this AI extract date, payee, and amount correctly?"
+Don't chase benchmarks. Chase your specific problem.
+
+Lesson 2: Ground Truth is Not Always Obvious
+The PDF and CSV are different data products from the same source. They are not guaranteed to be identical in structure or content.
+
+Before designing a test, understand the data pipeline.
+
+Lesson 3: Test What Matters, Not Everything
+For tax reporting:
+
+Must be right: Date, Amount, Payee
+
+Nice to have: Full description, Reference number
+
+Don't care: Address, Merchant location
+
+Cut through the noise. Identify the 20% of fields that give 80% of the value.
+
+Lesson 4: Use Dollar-Weighted Accuracy
+A missed transaction is not just a missed transaction. Weight your metrics by what matters.
+
+For financial data, dollars matter more than transaction count.
+
+Lesson 5: Make It Reproducible
+Build a test harness that:
+
+Uses real data from your domain
+
+Can be run by others
+
+Produces consistent results
+
+Reproducibility lets you compare models objectively over time.
+
+Lesson 6: Embrace the Community
+No single organization has all the data. Crowdsourcing results across different:
+
+Machines (CPU, GPU, RAM configs)
+
+Banks (different statement formats)
+
+Use cases (tax, budgeting, accounting)
+
+Crowdsourcing builds a more robust understanding than any single test.
+
+🎯 How to Apply This Framework
+Step 1: Define Your Business Outcome
+Question: What decision will you make with this data?
+
+Example: "I need to calculate total deductible business expenses for my tax return."
+
+Step 2: Identify Critical Data Fields
+Question: What specific data fields matter for that outcome?
+
+Example: "Date (for tax year), Amount (for deduction value), Payee (to distinguish business vs. personal)."
+
+Step 3: Understand Your Data Sources
+Question: Where does the data come from? Are the sources aligned?
+
+Example: "PDF statements are official records; CSV exports are from a different system. They won't match exactly."
+
+Step 4: Design a Domain-Specific Test
+Question: How will you test that the AI extracts the critical fields correctly?
+
+Example: "Match by (Date, Amount, First Word of Payee). Calculate dollar-weighted accuracy."
+
+Step 5: Set Acceptance Criteria
+Question: What constitutes "good enough" for your use case?
+
+Example: "Dollar drift < $500. Less than 2 completely missed transactions."
+
+Step 6: Make It Reproducible
+Question: How will you run this test again in the future?
+
+Example: "Git repo with 12 months of data, comparison scripts, and clear documentation."
+
+Step 7: Share Results
+Question: How will the community benefit from your work?
+
+Example: "GitHub repo with issue forms for others to submit results."
+
+🚀 Sample Implementation
+Comparison Script (Simplified)
+python
+def compare_transaction(pdf_row, csv_row):
+    errors = []
+    
+    # Date
+    if pdf_row['date'] != csv_row['date']:
+        errors.append(f"Date: {pdf_row['date']} vs {csv_row['date']}")
+    
+    # Amount (tolerance: $0.01)
+    if abs(pdf_row['amount'] - csv_row['amount']) > 0.01:
+        errors.append(f"Amount: {pdf_row['amount']} vs {csv_row['amount']}")
+    
+    # Payee (substring match)
+    if csv_row['payee'].lower() not in pdf_row['description'].lower():
+        errors.append(f"Payee: '{csv_row['payee']}' not in '{pdf_row['description']}'")
+    
+    return len(errors) == 0, errors
+
+def run_test(pdf_path, csv_path, extractor):
+    pdf_rows = extractor.extract(pdf_path)
+    csv_rows = read_csv(csv_path)
+    
+    # Match by (date, amount, first_word)
+    results = []
+    for pdf_row in pdf_rows:
+        key = (pdf_row['date'], pdf_row['amount'], pdf_row['description'].split()[0])
+        # ... matching logic
+        
+    # Dollar-weighted accuracy
+    total_actual = sum(row['amount'] for row in csv_rows)
+    total_extracted = sum(match['pdf_amount'] for match in results)
+    
+    return {
+        'dollar_drift': abs(total_actual - total_extracted),
+        'accuracy_pct': (total_extracted / total_actual) * 100,
+        'passed': passes
+    }
+Test Run Output
+json
+{
+  "run_id": "2026-08-08_13:42",
+  "model": "deepseek-r1:1.5b",
+  "bank": "Bank of America",
+  "months": 12,
+  "results": {
+    "2025-01": { "dollar_drift": 0.00, "transactions": 45, "pass": true },
+    "2025-02": { "dollar_drift": 12.50, "transactions": 38, "pass": false },
+    "2025-03": { "dollar_drift": 0.00, "transactions": 42, "pass": true }
+  },
+  "summary": {
+    "total_transactions": 512,
+    "total_dollar_drift": 12.50,
+    "dollar_weighted_accuracy": 99.97,
+    "missed_transactions": 1,
+    "amount_mismatches": 2,
+    "verdict": "PASS - Acceptable for tax reporting"
+  }
+}
+📖 Conclusion
+The Real Lesson
+When evaluating AI for a real-world task, start with your actual business outcome. Build a test that measures performance on that outcome, weighted by what matters. Make it reproducible. Share it with the community.
+
+This isn't just about financial extraction. The framework applies to any domain:
+
+Healthcare: Extract patient data, test for diagnostic accuracy
+
+Legal: Extract contract terms, test for clause identification
+
+Customer Support: Extract intent, test for response quality
+
+What You Get
+Confidence — You know exactly how the AI performs on your data
+
+Clarity — You know what "good enough" looks like
+
+Reproducibility — You can test new models against the same criteria
+
+Community — Others can benefit from your methodology
+
+Final Thought
+The goal isn't to find the "best" AI. It's to find the AI that works well enough for your specific, practical needs, with a clear understanding of where it succeeds and where it fails.
+
+That's how engineering should work.
+
+🔗 References & Resources
+Financial Document Analyzer - Local PDF extraction tool
+
+claude-proxy - Claude Code model swapping
+
+Ollama - Local model runtime
+
+Bank Statement Test Harness - This case study's code
+
+📝 Author Notes
+This article was inspired by real-world experience evaluating AI models for financial data extraction. The methodology was developed iteratively, driven by actual data analysis and practical requirements.
+
+The lesson applies broadly: Domain knowledge, not generic benchmarks, should drive AI evaluation.
+
+
