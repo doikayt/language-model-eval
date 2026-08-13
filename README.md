@@ -292,8 +292,14 @@ against.
 
 ## The map configuration
 
-Everything bank-specific is declarative: one YAML file per bank, validated
-against a schema at load time.
+Everything bank-specific is declarative: one YAML file per bank **and account
+type**, validated against a schema at load time. The unit is finer than "a
+bank": header wording and CSV export columns differ between, say, BofA personal
+checking and a BofA credit card, so they need separate configs — name them for
+the pair, e.g. `bofa-checking.map.yaml` and `bofa-card.map.yaml`. Note too that
+`periodPattern` and the `totals` regexes match the **`pdftotext -layout`
+output**, not the on-screen PDF; derive them from your own statements' extracted
+text.
 
 ```yaml
 version: 1
