@@ -67,10 +67,20 @@ export (machine-readable, but usually only 12–18 months of history). Neither i
 derived from the other. Columns do not map one-to-one, reference numbers come
 from different systems, and descriptions are formatted differently.
 
-That mismatch is exactly what makes this a good evaluation target. Where both
-views exist you have **ground truth for free**: the CSV export tells you what
-transactions the PDF must contain. You can then ask a model to produce the CSV
-from the PDF alone and measure how close it got, with no manual labelling.
+That mismatch is exactly what makes this a good evaluation target. In the
+**interior** of a statement period, where both views exist, you have ground
+truth for free: the CSV export tells you what transactions the PDF must
+contain, and you can ask a model to produce the CSV from the PDF alone and
+measure how close it got with no manual labelling.
+
+The exception is a **period boundary**. The PDF's cutoff and the CSV export's
+cutoff come from different systems, so a transaction posted in the last day or
+two of a period can appear in one view and not the other. There the CSV is
+*not* ground truth for that row: a model that reads it correctly off the PDF is
+charged with a fabrication, and a CSV-only row surfaces as an omission. This is
+what [`lme gold verify`](#lme-gold-verify--validate-the-ground-truth) exists to
+catch — see the endpoint-alignment check below. A boundary disagreement is a
+gold-set defect, not a model error; fix or exclude the statement before scoring.
 
 Once you trust a model on the months where both exist, you can run it on the
 older statements where only the PDF survives.
@@ -239,7 +249,7 @@ CSV export covering an arbitrary date range. `gold build` pairs them up:
 number the harness produces afterwards is wrong in a way no amount of model
 tuning will reveal.
 
-`gold verify` performs three checks:
+`gold verify` performs four checks:
 
 1. **Reconciliation.** Parse the statement's own printed totals (total
    deposits, total withdrawals, ending balance) out of the PDF text and check
@@ -249,7 +259,19 @@ tuning will reveal.
 2. **Boundary leakage.** Flag transactions dated within a day or two of a
    period edge. Posted-date-versus-transaction-date drift is the usual cause of
    a row landing in the wrong statement.
-3. **Blind-spot analysis.** Report how much of the gold set your match key
+3. **Endpoint alignment.** A boundary disagreement can only appear at the head
+   or tail of a period, so this check looks only there. Let
+   `δ = printedTotal − Σ(sliced CSV rows)` be the reconciliation gap from check
+   1. If `δ ≠ 0` **and** the first or last CSV row sits more than the window
+   inside the period edge, a transaction present in one view but not the other
+   almost certainly accounts for it, and `|δ|` estimates its amount. This is
+   the end-of-month case: the PDF's cutoff includes a transaction the CSV
+   export's cutoff does not (or vice versa). The check is **pure metadata** — it
+   needs the printed totals and the period bounds only, never a per-transaction
+   parse of the PDF — so it cannot quote the offending row, only localize it to
+   an edge and price it from `δ`. Exclude or re-slice the flagged statement
+   before scoring.
+4. **Blind-spot analysis.** Report how much of the gold set your match key
    cannot distinguish — see
    [Match keys and the harness blind spot](#match-keys-and-the-harness-blind-spot).
 
