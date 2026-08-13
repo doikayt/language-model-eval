@@ -10,6 +10,7 @@
     - [`lme gold build` — the populator](#lme-gold-build--the-populator)
     - [`lme gold verify` — validate the ground truth](#lme-gold-verify--validate-the-ground-truth)
   - [The map configuration](#the-map-configuration)
+    - [The statement half and the gold half](#the-statement-half-and-the-gold-half)
     - [Which fields are even worth testing](#which-fields-are-even-worth-testing)
   - [The transformation library](#the-transformation-library)
     - [Why `firstToken` is the workhorse](#why-firsttoken-is-the-workhorse)
@@ -351,6 +352,41 @@ scoring:
     omissions:           { green: 0, yellow: 1 }
     fabrications:        { green: 0, yellow: 2 }
 ```
+
+### The statement half and the gold half
+
+Two of the config's sections read your real data, each from a different file, and
+it helps to see how they fit together:
+
+- **`statement:` — the PDF envelope.** Runs against the PDF text layer. It says
+  *where* a statement's period is (`periodPattern`, `dateFormat`) and *what the
+  bank's own printed control totals are* (`totals`). It carries no
+  per-transaction detail.
+- **`gold:` — the CSV payload.** Runs against the CSV export rows. It says how to
+  turn each exported row into a canonical transaction (`postedDate`, `amount`,
+  `payee`). It carries the detail but knows nothing about period boundaries.
+
+They meet in two places:
+
+1. **`gold build` uses the envelope to select the payload.**
+   `statement.periodPattern` reads `[start, end]` off the PDF; `gold build`
+   slices the export down to rows whose posted date falls in that window; `gold:`
+   then parses those rows. The envelope picks the window; the payload fills it.
+2. **`gold verify` checks the payload against the envelope.** It sums the
+   `gold:`-parsed rows and compares that against `statement.totals` read from the
+   PDF. The printed totals are the control figure the detail must reconcile to —
+   and the [endpoint-alignment check](#lme-gold-verify--validate-the-ground-truth)
+   is what fires when a boundary transaction makes the two disagree.
+
+Neither half is derived from the other: they read two files produced by two
+different systems (see [Why this exists](#why-this-exists)). That independence is
+why account type can change either half on its own — a credit-card PDF header and
+a credit-card export's columns move for unrelated reasons.
+
+The other sections aren't about reading source truth: `candidate:` maps a model's
+output into the same canonical shape, `key:` reduces a canonical record for
+matching, and `scoring:` sets pass/fail thresholds. Those are comparison
+machinery, covered below.
 
 ### Which fields are even worth testing
 
