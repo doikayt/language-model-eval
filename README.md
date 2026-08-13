@@ -67,20 +67,32 @@ export (machine-readable, but usually only 12–18 months of history). Neither i
 derived from the other. Columns do not map one-to-one, reference numbers come
 from different systems, and descriptions are formatted differently.
 
-That mismatch is exactly what makes this a good evaluation target. In the
-**interior** of a statement period, where both views exist, you have ground
-truth for free: the CSV export tells you what transactions the PDF must
-contain, and you can ask a model to produce the CSV from the PDF alone and
-measure how close it got with no manual labelling.
+That mismatch is what makes this a good evaluation target. Grading a PDF→CSV
+extractor normally means a human reads each statement and types the correct
+transactions into a target CSV — the **label** every supervised evaluation pays
+someone to produce. For any month recent enough that the bank handed you both
+artifacts (the PDF *and* a CSV export of the same period; older months are
+PDF-only, since exports cover only the last 12–18 months), that label already
+exists: the export **is** the target. So you can ask a model to produce the CSV
+from the PDF alone and score it against the export, with no hand-labelling at all.
 
-The exception is a **period boundary**. The PDF's cutoff and the CSV export's
-cutoff come from different systems, so a transaction posted in the last day or
-two of a period can appear in one view and not the other. There the CSV is
-*not* ground truth for that row: a model that reads it correctly off the PDF is
-charged with a fabrication, and a CSV-only row surfaces as an omission. This is
-what [`lme gold verify`](#lme-gold-verify--validate-the-ground-truth) exists to
-catch — see the endpoint-alignment check below. A boundary disagreement is a
-gold-set defect, not a model error; fix or exclude the statement before scoring.
+The period itself is whatever the **PDF prints in its header**: `gold build`
+reads it via `statement.periodPattern` and treats it as a closed interval on
+posted dates (`start ≤ postedDate ≤ end`, day granularity — no open/closed
+endpoint to resolve). The CSV target is then *defined* as the bulk export sliced
+to that interval. The PDF fixes the bracket; the CSV inherits it.
+
+Having both artifacts for a month is not the same as the two agreeing on every
+row in it. The risk is the **membership rule** at the period edge: we slice the
+CSV by *posted* date, but a bank prints a transaction on a statement by its own
+cutoff, which can key off *transaction* date. A charge transacted this period
+but posted a day into the next is printed on this PDF yet sliced into next
+month's CSV — and vice versa. There the export is *not* a trustworthy label for
+that row: a model that reads it correctly off the PDF is charged with a
+fabrication, and a CSV-only row surfaces as an omission. This is what
+[`lme gold verify`](#lme-gold-verify--validate-the-ground-truth) exists to catch
+— see the endpoint-alignment check below. A boundary disagreement is a gold-set
+defect, not a model error; fix or exclude the statement before scoring.
 
 Once you trust a model on the months where both exist, you can run it on the
 older statements where only the PDF survives.
