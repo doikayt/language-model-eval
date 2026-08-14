@@ -1,6 +1,6 @@
 {
   "name": "@doikayt/language-model-eval",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "",
   "scripts": {
     "ci": "npm run check-all-format && npm run test",
