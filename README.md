@@ -71,11 +71,12 @@ from different systems, and descriptions are formatted differently.
 That mismatch is what makes this a good evaluation target. Grading a PDF→CSV
 extractor normally means a human reads each statement and types the correct
 transactions into a target CSV — the **label** every supervised evaluation pays
-someone to produce. For any month recent enough that the bank handed you both
-artifacts (the PDF *and* a CSV export of the same period; older months are
-PDF-only, since exports cover only the last 12–18 months), that label already
-exists: the export **is** the target. So you can ask a model to produce the CSV
-from the PDF alone and score it against the export, with no hand-labelling at all.
+someone to produce. The bank hands you both artifacts only for recent
+months: the PDF, and a CSV export of the same period. Exports cover only the
+last 12–18 months, so older months are PDF-only. For any month where both
+exist, that label already exists too — the export **is** the target. So you can
+ask a model to produce the CSV from the PDF alone and score it against the
+export, with no hand-labelling at all.
 
 The period itself is whatever the **PDF prints in its header**: `gold build`
 reads it via `statement.periodPattern` and treats it as a closed interval on
