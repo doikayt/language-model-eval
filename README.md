@@ -176,6 +176,17 @@ Here you point the harness at your own statements. The order matters:
 4. **Evaluate the model.** Only once the ceiling is provably 100% do you add
    `candidate.fields` + a prompt and score the model on real documents.
 
+Step 1 is the friction point for a new bank, so the config can be
+**model-drafted, then frozen**: a capable model reads one sample pair and
+proposes the `periodPattern`, formats, and column maps, which you confirm before
+trusting. Redact the sample first with [`lme redact`](#privacy) — drafting needs
+the *structure* (column names, header shape, amount format), not your actual
+values, so the authoring model never sees your finances. Two rules keep it
+honest: the draft is a **one-time scaffold** — at scoring time the config is
+plain, hashed YAML with no model in the loop — and the authoring model must be
+**distinct from the extractor under test**, since a model that both writes the
+ruler and is measured by it can't be graded.
+
 The disagreement vetting guards against is **not a bank bug**. Two
 internally-consistent views that use different membership rules — posted date vs
 transaction date — disagree at the edge even for a flawless bank. Vetting isn't
