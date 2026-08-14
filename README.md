@@ -82,16 +82,19 @@ transactions into a target CSV — the **label** every supervised evaluation pay
 someone to produce. The bank hands you both artifacts only for recent
 months: giving you (a) the PDF, and (b) a CSV export for any such month. Exports cover only the
 last 12–18 months, so older months are PDF-only. For any month where both
-exist, that label already exists too — the export **is** the 'golden' target. So you can
-ask a model to produce a CSV from the PDF alone — the **candidate CSV** — and
+exist, that label already exists too — the export **is** the 'golden' target,
+provided the pair actually agrees one-for-one (not guaranteed at a period edge —
+you [vet that first](#phase-2--onboard-your-bank)). So you can ask a model to
+produce a CSV from the PDF alone — the **candidate CSV** — and
 score it against the bank's CSV export, which serves as the **target**, with no
 hand-labelling at all. That score grades your **extraction process** (the model,
 prompt, and [map config](#the-map-configuration) that turn a PDF into a CSV), not
 the bank: it is how closely the candidate CSV reproduces the bank's own export
 from the PDF alone.
 
-The period itself is whatever the **PDF prints in its header**: `gold build`
-reads it via `statement.periodPattern` and treats it as a closed interval on
+The period itself is whatever the **PDF prints in its header**:
+[`gold build`](#lme-gold-build--the-populator) reads it via
+`statement.periodPattern` and treats it as a closed interval on
 posted dates (`start ≤ postedDate ≤ end`, day granularity — no open/closed
 endpoint to resolve). The CSV target is then *defined* as the bulk export sliced
 to that interval. The PDF fixes the bracket; the CSV inherits it.
