@@ -810,20 +810,29 @@ you get a small distribution. Read two things off it, not the single run:
   75th percentile minus the 25th). A robust measure of *how consistent* the
   model is.
 
-For example, five runs of one statement:
+For example, two models run eight times each on the same statement, sorted low to
+high (the bar marks the split — `Q1` is the median of the lower half, `Q3` of the
+upper half):
 
 ```
-E = [ $0.00, $0.00, $0.00, $12.50, $0.00 ]
-      median = $0.00     IQR ≈ $0.00 (one high outlier)
+Model A:  $4  $4  $5  $5 | $5  $5  $6  $6     median $5   IQR  $1   (Q1 $4.5, Q3 $5.5)
+Model B:  $0  $0  $2  $5 | $5 $12 $18 $20     median $5   IQR $14   (Q1 $1,   Q3 $15)
 ```
 
-The median says "usually perfect"; the outlier says "drops a transaction roughly
-one run in five." A single pass that happened to land on `$0.00` would have hidden
-that entirely — and for taxes, a model that is perfect on average but occasionally
-omits a row is *not* safe, because an omission is invisible in the output. Judge a
-model by where it usually lands **and** how much it wobbles; the report shows
-per-document results precisely so you can see *which* statement wobbled rather
-than trusting an aggregate.
+Both have the **same median**, `$5` — judged by the typical run alone they look
+equally good. But A's runs cluster tightly (IQR `$1`) while B's are scattered
+(IQR `$14`): B sometimes nails it (`$0`) and sometimes badly misses (`$20`). Same
+typical result, very different reliability — you want A. That is exactly what the
+IQR shows and the median cannot.
+
+One failure the IQR *won't* catch is a **rare** bad run — say
+`[$0, $0, $0, $0, $18]`, a model that is perfect almost always but drops a
+transaction once. Because the IQR measures the middle of the distribution, it
+ignores a lone outlier by design. For taxes that rare miss is the whole danger —
+an omission is invisible in the output — so also watch the **worst run**. Read all
+three together: median (typical), IQR (consistency), and max (worst case). The
+report shows per-document results precisely so you can see *which* statement
+wobbled rather than trusting an aggregate.
 
 ### On sample sizes
 
