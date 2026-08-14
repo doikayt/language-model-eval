@@ -3,6 +3,7 @@
   - [Why this exists](#why-this-exists)
   - [Scope](#scope)
   - [How it works](#how-it-works)
+    - [The canonical record](#the-canonical-record)
   - [Installation](#installation)
     - [System dependencies](#system-dependencies)
   - [Quick start](#quick-start)
@@ -45,7 +46,11 @@
 # language-model-eval
 
 A harness for measuring how accurately a language model converts **PDF documents
-into structured CSV**, scored against a hand-verified gold data set.
+into structured CSV**, scored against a hand-verified gold data set. Both the
+model's output and that gold set are compared as **canonical records** — one
+normalized transaction shape, defined [below](#the-canonical-record) — then
+matched through a **key function** `k`, defined
+[under match keys](#match-keys-and-the-harness-blind-spot).
 
 The canonical use case — and the one every example here uses — is **bank
 statements**: you have twelve months of PDFs from your bank, and what you
@@ -72,9 +77,9 @@ That mismatch is what makes this a good evaluation target. Grading a PDF→CSV
 extractor normally means a human reads each statement and types the correct
 transactions into a target CSV — the **label** every supervised evaluation pays
 someone to produce. The bank hands you both artifacts only for recent
-months: the PDF, and a CSV export of the same period. Exports cover only the
+months: giving you (a) the PDF, and (b) a CSV export for any such month. Exports cover only the
 last 12–18 months, so older months are PDF-only. For any month where both
-exist, that label already exists too — the export **is** the target. So you can
+exist, that label already exists too — the export **is** the 'golden' target. So you can
 ask a model to produce a CSV from the PDF alone — the **candidate** — and score
 it against the bank's CSV export, which serves as the **target**, with no
 hand-labelling at all. That score grades your **extraction process** (the model,
@@ -91,7 +96,7 @@ Having both artifacts for a month is not the same as the two agreeing on every
 row in it. The risk is the **membership rule** at the period edge: we slice the
 CSV by *posted* date, but a bank prints a transaction on a statement by its own
 cutoff, which can key off *transaction* date. A charge transacted this period
-but posted a day into the next is printed on this PDF yet sliced into next
+but posted a day into the next could well be printed on a given month's PDF yet sliced into next
 month's CSV — and vice versa. There the export is *not* a trustworthy label for
 that row: a model that reads it correctly off the PDF is charged with a
 fabrication, and a CSV-only row surfaces as an omission. This is what
@@ -152,6 +157,8 @@ older statements where only the PDF survives.
                                   ▼
                    scoring ──► runs/<id>/report.{json,md}
 ```
+
+### The canonical record
 
 Both sides — the gold CSV and whatever the model emitted — are normalized into
 the *same* canonical record shape before anything is compared:
