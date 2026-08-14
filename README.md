@@ -793,10 +793,36 @@ comparable, and the manifest is what lets you notice.
 
 ### Variance
 
-Temperature-zero decoding is not deterministic in practice — quantization,
-batching, and runtime version all move the output. Use `--repeat N` and read the
-**median and interquartile range** of `E`, not a single number. The report shows
-per-document results precisely so you can see *which* statement failed rather
+Temperature-zero decoding is not deterministic in practice. You would expect
+`temperature: 0` to be repeatable — always take the highest-probability token —
+but floating-point rounding depends on batching, the GPU/CPU kernel, the
+quantization, and the runtime version, and any of those can flip a token now and
+then. A flipped token means a slightly different CSV, which means a different
+score. So the *same* model on the *same* statement can score `E = $0.00` on one
+run and `E = $12.50` on the next.
+
+`--repeat N` runs the extraction `N` times per document, so instead of one number
+you get a small distribution. Read two things off it, not the single run:
+
+- **Median** — the middle value once the runs are sorted; the *typical* result.
+  Unlike a mean, one weird run doesn't drag it around.
+- **Interquartile range (IQR)** — the spread of the middle half, `Q3 − Q1` (the
+  75th percentile minus the 25th). A robust measure of *how consistent* the
+  model is.
+
+For example, five runs of one statement:
+
+```
+E = [ $0.00, $0.00, $0.00, $12.50, $0.00 ]
+      median = $0.00     IQR ≈ $0.00 (one high outlier)
+```
+
+The median says "usually perfect"; the outlier says "drops a transaction roughly
+one run in five." A single pass that happened to land on `$0.00` would have hidden
+that entirely — and for taxes, a model that is perfect on average but occasionally
+omits a row is *not* safe, because an omission is invisible in the output. Judge a
+model by where it usually lands **and** how much it wobbles; the report shows
+per-document results precisely so you can see *which* statement wobbled rather
 than trusting an aggregate.
 
 ### On sample sizes
