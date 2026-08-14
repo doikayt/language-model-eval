@@ -44,6 +44,7 @@
     - [Clone, don't `npm install`](#clone-dont-npm-install)
     - [Rejected: a second extractor as the oracle](#rejected-a-second-extractor-as-the-oracle)
     - [What generalizes](#what-generalizes)
+  - [Design lessons](#design-lessons)
 <!-- TOC:END -->
 
 # language-model-eval
@@ -1001,6 +1002,50 @@ config and the same harness scores clinical values out of lab PDFs, or line
 items out of invoices. The domain-specific parts are exactly three: which fields
 matter, how to normalize them, and what "good enough" means. Everything else is
 bookkeeping.
+
+## Design lessons
+
+What this exercise teaches beyond bank statements — the part that transfers to
+any LLM system, because the hard engineering is almost never the prompt:
+
+- **Use the model as a compiler, not an interpreter.** Prefer having the LLM
+  *write the extractor once* — rules, config, code you can inspect and freeze —
+  over having it *be* the extractor on every document. Move the nondeterminism to
+  author-time; keep the hot path deterministic, free, and auditable.
+- **Gate on the artifact, not the outputs — the maker–checker pattern.** A human
+  reviews one small, stable thing (the transform rules) once, instead of policing
+  endless variable outputs. Put the human-in-the-loop approval on the durable
+  artifact, and gate by the action's blast radius.
+- **Route each subtask to the tool whose failure mode you can tolerate.** The LLM
+  for open-ended structure inference at setup (a wrong guess is caught by review);
+  deterministic code for exact, repeated arithmetic (a random miss is not
+  acceptable). Hybrid beats either extreme.
+- **Trust needs a deterministic anchor — never grade AI with AI.** Verification
+  here comes from the statement's own printed totals, not the model, and a
+  [second extractor was rejected as the oracle](#rejected-a-second-extractor-as-the-oracle).
+  Your evaluator must out-trust the thing it evaluates.
+- **Pick metrics that can't cancel, and cost errors asymmetrically.** Absolute
+  dollar error over net drift, because offsetting errors hide in a sum; and a
+  stricter threshold on omissions than fabrications, because an omission is
+  invisible. See [Scoring](#scoring).
+- **Temperature 0 is not deterministic — judge the distribution and the tail.**
+  Sample with `--repeat` and read median, IQR, *and* the worst run; the average
+  is what lulls you into trusting a model that fails one time in five. See
+  [Variance](#variance).
+- **Synthetic evals reject; they don't certify.** Failing generated data rejects
+  a model soundly; passing it doesn't prove real-world accuracy. Make the eval
+  representative (`lme redact`), not imaginary. See
+  [Two phases of evaluation](#two-phases-of-evaluation).
+- **Pin everything — the scoring logic is part of the experiment.** Model digest,
+  prompt hash, config hash, git SHA, seed, hardware: change any of them and
+  yesterday's scores stop being comparable. See
+  [Run manifests](#run-manifests-and-reproducibility).
+- **Know and quantify your blind spot.** Every lossy key has an equivalence class
+  it cannot audit; measure it (the fraction **B**) instead of assuming it's zero.
+  See [the blind spot](#the-blind-spot).
+- **The hard part is the eval and the plumbing, not the prompt.** Gold sets,
+  metrics, variance, provenance, and determinism boundaries are where the
+  reliability lives — the model is the easy, swappable part.
 
 ---
 
