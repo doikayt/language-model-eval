@@ -86,8 +86,9 @@ exist, that label already exists too — the export **is** the 'golden' target. 
 ask a model to produce a CSV from the PDF alone — the **candidate CSV** — and
 score it against the bank's CSV export, which serves as the **target**, with no
 hand-labelling at all. That score grades your **extraction process** (the model,
-prompt, and config that turn a PDF into a CSV), not the bank: it is how closely
-the candidate CSV reproduces the bank's own export from the PDF alone.
+prompt, and [map config](#the-map-configuration) that turn a PDF into a CSV), not
+the bank: it is how closely the candidate CSV reproduces the bank's own export
+from the PDF alone.
 
 The period itself is whatever the **PDF prints in its header**: `gold build`
 reads it via `statement.periodPattern` and treats it as a closed interval on
