@@ -118,7 +118,7 @@ questions. Keeping them apart is what keeps a score honest.
 | | Phase 1 — trust the machinery | Phase 2 — onboard your bank |
 |---|---|---|
 | Data | constructed / synthetic | your real statements |
-| Validates | the mapping, matcher, and scoring math | that a real PDF/CSV pair agrees, then real model accuracy |
+| Validates | the mapping, matcher, scoring math, and a representative model baseline | that a real PDF/CSV pair agrees, then confirms model accuracy on real docs |
 | Lives in | `fixtures/` (committed, CI-only) | `gold/` + [`lme gold verify`](#lme-gold-verify--validate-the-ground-truth) |
 | Deterministic? | yes — pin it exactly | no — real documents, real model |
 
@@ -133,14 +133,27 @@ amount wrong — and assert the scorer reports exactly one omission, one
 fabrication, and one amount error, with the right dollar `E`. A suite that only
 proves "100% on good input" never proves the scorer *bites*.
 
-Two things Phase 1 does **not** need:
+Generated data isn't only for the plumbing — it's also the right place to
+**value and tune the model.** Because the PDF and CSV are derived from one
+source, they agree one-for-one, so a model's `E` here is uncontaminated by
+boundary drift: it reflects the model plus config and nothing else. That makes
+Phase 1 where the expensive, iterative loop lives — comparing models and tuning
+the prompt, chunking, and transform chain — all fast, private, and repeatable.
+Use [`lme redact`](#privacy) to generate those fixtures **from your own
+statements**: it keeps the real layout, column shapes, and date/amount
+conventions while replacing the vendors, amounts, and dates, so the baseline it
+produces is *representative*, not imaginary.
 
-- **Bad bank PDFs.** The PDF is the source of truth; a buggy one is a reason to
-  distrust the bank, not a fixture to write against.
-- **Real accuracy.** Synthetic PDFs can't reproduce the layouts where extraction
-  actually fails — multi-line descriptions, a transaction split across a page
-  break, odd `pdftotext` spacing. Phase 1 smoke-tests the model but measures the
-  machinery around it; the model's real number is Phase 2's job.
+One thing Phase 1 does **not** need: **bad bank PDFs.** The PDF is the source of
+truth; a buggy one is a reason to distrust the bank, not a fixture to write
+against.
+
+The limit is precision, not uselessness: a Phase-1 pass is **necessary but not
+sufficient.** Generated data is only as hard as you made it, so failing it
+rejects a model soundly — fail synthetic and it will fail real — while passing it
+doesn't *prove* real-world accuracy, since a real statement can carry a quirk you
+never synthesized. Redacted-real fixtures shrink that gap; they don't close it.
+That is why Phase 2 is the confirmation pass, not the first measurement.
 
 ### Phase 2 — onboard your bank
 
