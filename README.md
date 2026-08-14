@@ -110,6 +110,16 @@ defect, not a model error; fix or exclude the statement before scoring.
 Once you trust a model on the months where both exist, you can run it on the
 older statements where only the PDF survives.
 
+Those PDF-only months are the actual deliverable, and by definition they have no
+CSV to score against — so trust is **carried forward**, not re-measured: you rely
+on the number the model earned on the paired months of the *same bank and
+layout*. The one check that still works with no gold CSV is **reconciliation
+against the PDF's own printed totals** — sum the extracted rows and compare
+against the total the statement prints. It's config-light and deterministic, and
+it catches the scary case: a dropped or hallucinated row that moves the sum. It
+cannot catch offsetting errors that net to zero (those need the transaction-level
+gold you don't have here), so treat it as a seatbelt, not a certificate.
+
 ## Two phases of evaluation
 
 Evaluation splits into two phases that use different data and answer different
