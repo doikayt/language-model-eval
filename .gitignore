@@ -38,3 +38,8 @@ crash.*.log
 terraform.tfvars
 *.auto.tfvars
 
+# Real bank statements and per-run output — never commit (see README: Privacy).
+# fixtures/ is synthetic and stays committed.
+gold/
+runs/
+
