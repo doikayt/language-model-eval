@@ -92,24 +92,25 @@ prompt, and [map config](#the-map-configuration) that turn a PDF into a CSV), no
 the bank: it is how closely the candidate CSV reproduces the bank's own export
 from the PDF alone.
 
-The period itself is whatever the **PDF prints in its header**:
-[`gold build`](#lme-gold-build--the-populator) reads it via
-`statement.periodPattern` and treats it as a closed interval on
-posted dates (`start ≤ postedDate ≤ end`, day granularity — no open/closed
-endpoint to resolve). The CSV target is then *defined* as the bulk export sliced
-to that interval. The PDF fixes the bracket; the CSV inherits it.
+Having both files for a month is not the same as the two holding the **same
+transactions**. Two defects can spoil the pair, and both make the export a
+misleading label:
 
-Having both artifacts for a month is not the same as the two agreeing on every
-row in it. The risk is the **membership rule** at the period edge: we slice the
-CSV by *posted* date, but a bank prints a transaction on a statement by its own
-cutoff, which can key off *transaction* date. A charge transacted this period
-but posted a day into the next could well be printed on a given month's PDF yet sliced into next
-month's CSV — and vice versa. There the export is *not* a trustworthy label for
-that row: a model that reads it correctly off the PDF is charged with a
-fabrication, and a CSV-only row surfaces as an omission. This is what
-[`lme gold verify`](#lme-gold-verify--validate-the-ground-truth) exists to catch
-— see the endpoint-alignment check below. A boundary disagreement is a gold-set
-defect, not a model error; fix or exclude the statement before scoring.
+- **A one-off row.** The PDF and the CSV can disagree on which statement a
+  transaction belongs to — one keys off posted date, the other off transaction
+  date — so a charge near a month's edge lands in one and not the other. The
+  model reads it correctly off the PDF and is charged with a fabrication; a
+  CSV-only row surfaces as an omission.
+- **Offsetting differences.** Rows that differ individually but net to the same
+  total — one over by $100, the next under by $100. A totals check waves them
+  through, yet the per-transaction figures your taxes depend on are wrong.
+
+Neither is a model error — they are defects in the pair itself — so you don't
+take the pair on faith.
+[`lme gold verify`](#lme-gold-verify--validate-the-ground-truth) checks it
+*transaction by transaction*, not by totals (a sum check is exactly what an
+offsetting difference slips past). Fix or exclude a bad pair before you score
+anything against it.
 
 Once you trust a model on the months where both exist, you can run it on the
 older statements where only the PDF survives.
@@ -182,8 +183,9 @@ Here you point the harness at your own statements. The order matters:
    CSV rows, and the endpoint-alignment check localizes any disagreement to a
    period edge.
 3. **Fix or quarantine.** If the export carries both a posted and a transaction
-   date, re-slice by the field that reconciles (`gold build --slice-date`,
-   auto-picking the reconciling column) — this *eliminates* the disagreement. If
+   date, re-slice by the field that reconciles
+   ([`gold build`](#lme-gold-build--the-populator) `--slice-date`, auto-picking
+   the reconciling column) — this *eliminates* the disagreement. If
    it carries only one, quarantine the one or two disputed edge rows: drop them
    from both the gold denominator and the matcher, so neither an omission nor a
    fabrication is charged for a row the two views legitimately disagree on.
