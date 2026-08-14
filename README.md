@@ -75,8 +75,11 @@ someone to produce. The bank hands you both artifacts only for recent
 months: the PDF, and a CSV export of the same period. Exports cover only the
 last 12–18 months, so older months are PDF-only. For any month where both
 exist, that label already exists too — the export **is** the target. So you can
-ask a model to produce the CSV from the PDF alone and score it against the CSV
-export, with no hand-labelling at all.
+ask a model to produce a CSV from the PDF alone — the **candidate** — and score
+it against the bank's CSV export, which serves as the **target**, with no
+hand-labelling at all. That score grades your **extraction process** (the model,
+prompt, and config that turn a PDF into a CSV), not the bank: it is how closely
+the candidate reproduces the bank's own export from the PDF alone.
 
 The period itself is whatever the **PDF prints in its header**: `gold build`
 reads it via `statement.periodPattern` and treats it as a closed interval on
