@@ -1,6 +1,9 @@
 <!-- TOC:START -->
 - [language-model-eval](#language-model-eval)
   - [Why this exists](#why-this-exists)
+  - [Two phases of evaluation](#two-phases-of-evaluation)
+    - [Phase 1 — trust the machinery](#phase-1--trust-the-machinery)
+    - [Phase 2 — onboard your bank](#phase-2--onboard-your-bank)
   - [Scope](#scope)
   - [How it works](#how-it-works)
     - [The canonical record](#the-canonical-record)
@@ -106,6 +109,65 @@ defect, not a model error; fix or exclude the statement before scoring.
 
 Once you trust a model on the months where both exist, you can run it on the
 older statements where only the PDF survives.
+
+## Two phases of evaluation
+
+Evaluation splits into two phases that use different data and answer different
+questions. Keeping them apart is what keeps a score honest.
+
+| | Phase 1 — trust the machinery | Phase 2 — onboard your bank |
+|---|---|---|
+| Data | constructed / synthetic | your real statements |
+| Validates | the mapping, matcher, and scoring math | that a real PDF/CSV pair agrees, then real model accuracy |
+| Lives in | `fixtures/` (committed, CI-only) | `gold/` + [`lme gold verify`](#lme-gold-verify--validate-the-ground-truth) |
+| Deterministic? | yes — pin it exactly | no — real documents, real model |
+
+### Phase 1 — trust the machinery
+
+Everything except the model is deterministic, so a synthetic suite pins it
+exactly. Build known-good pairs and assert the harness scores them 100%
+(`E = 0`) — the identity/ceiling test, which is also what catches a
+non-idempotent [key function](#match-keys-and-the-harness-blind-spot). Then build
+a known-**bad** *candidate* — one that drops a row, invents a row, and gets one
+amount wrong — and assert the scorer reports exactly one omission, one
+fabrication, and one amount error, with the right dollar `E`. A suite that only
+proves "100% on good input" never proves the scorer *bites*.
+
+Two things Phase 1 does **not** need:
+
+- **Bad bank PDFs.** The PDF is the source of truth; a buggy one is a reason to
+  distrust the bank, not a fixture to write against.
+- **Real accuracy.** Synthetic PDFs can't reproduce the layouts where extraction
+  actually fails — multi-line descriptions, a transaction split across a page
+  break, odd `pdftotext` spacing. Phase 1 smoke-tests the model but measures the
+  machinery around it; the model's real number is Phase 2's job.
+
+### Phase 2 — onboard your bank
+
+Here you point the harness at your own statements. The order matters:
+
+1. **Author the two data-reading halves** of the map config — `statement.*` and
+   `gold.fields`, the [envelope and payload](#the-statement-half-and-the-gold-half).
+   You need both just to read a pair.
+2. **Vet the pair.** Does the PDF agree with the CSV export one-for-one? This is
+   where posted-date-versus-transaction-date drift shows up. `gold verify`
+   reconciles the PDF's own printed totals **and transaction count** against the
+   CSV rows, and the endpoint-alignment check localizes any disagreement to a
+   period edge.
+3. **Fix or quarantine.** If the export carries both a posted and a transaction
+   date, re-slice by the field that reconciles (`gold build --slice-date`,
+   auto-picking the reconciling column) — this *eliminates* the disagreement. If
+   it carries only one, quarantine the one or two disputed edge rows: drop them
+   from both the gold denominator and the matcher, so neither an omission nor a
+   fabrication is charged for a row the two views legitimately disagree on.
+4. **Evaluate the model.** Only once the ceiling is provably 100% do you add
+   `candidate.fields` + a prompt and score the model on real documents.
+
+The disagreement vetting guards against is **not a bank bug**. Two
+internally-consistent views that use different membership rules — posted date vs
+transaction date — disagree at the edge even for a flawless bank. Vetting isn't
+bug-hunting; it is proving the score's ceiling is actually 100% before you trust
+any model number below it.
 
 ## Scope
 
